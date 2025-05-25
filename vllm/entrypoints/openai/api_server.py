@@ -52,6 +52,10 @@ from vllm.entrypoints.openai.protocol import (ChatCompletionRequest,
                                               ChatCompletionResponse,
                                               ClassificationRequest,
                                               ClassificationResponse,
+                                              PrepareRequest,
+                                              PrepareResponse,
+                                              CommitRequest,
+                                              CommitResponse,
                                               CompletionRequest,
                                               CompletionResponse,
                                               DetokenizeRequest,
@@ -716,6 +720,57 @@ async def create_classify(request: ClassificationRequest,
 
     assert_never(generator)
 
+
+@router.post("/prepare", dependencies=[Depends(validate_json_request)])
+async def prepare_kv_cache(request: PrepareRequest, raw_request: Request):
+    """
+    Allocate KV cache space for the request and return the allocated position.
+    """
+    handler = engine_client(raw_request)  # 获取引擎客户端
+
+    if not request.prompt and not request.token_ids:
+        raise HTTPException(
+            status_code=HTTPStatus.BAD_REQUEST,
+            detail="Either `prompt` or `token_ids` must be provided."
+        )
+    # elif not request.token_ids:
+    #     tokenizer = handler.get_tokenizer()
+    #     request.token_ids = tokenizer.encode(request.prompt)
+
+    try:
+        # 调用引擎的分配 KV cache 方法
+        prefix_args = await handler.prepare_cache(request.request_id, request.token_ids)
+    except Exception as e:
+        raise HTTPException(status_code=HTTPStatus.INTERNAL_SERVER_ERROR.value,
+                            detail=str(e)) from e
+
+    # 返回分配的 KV cache 位置
+    return JSONResponse(content=PrepareResponse(
+        token_ids = prefix_args.token_ids,
+        prefix_ids = prefix_args.prefix_ids,
+        cache_loc = prefix_args.cache_loc,
+    ).model_dump())
+
+
+@router.post("/commit", dependencies=[Depends(validate_json_request)])
+@with_cancellation
+async def commit_kv_cache(request: CommitRequest, raw_request: Request):
+    """
+    Commit the KV cache for the given request.
+    """
+    handler = engine_client(raw_request)  # 获取引擎客户端
+
+    try:
+        # 调用引擎的提交 KV cache 方法
+        await handler.commit_cache(request.request_id, request.token_ids, request.cache_loc)
+    except Exception as e:
+        raise HTTPException(status_code=HTTPStatus.INTERNAL_SERVER_ERROR.value,
+                            detail=str(e)) from e
+
+    # 返回提交状态
+    return JSONResponse(content=CommitResponse(
+        status="success"
+    ).model_dump())
 
 @router.post("/score",
              dependencies=[Depends(validate_json_request)],

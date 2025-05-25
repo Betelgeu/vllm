@@ -1356,6 +1356,43 @@ class ClassificationResponse(OpenAIBaseModel):
     usage: UsageInfo
 
 
+class PrepareRequest(OpenAIBaseModel):
+    request_id: str = Field(default_factory=lambda: f"prepare-{random_uuid()}")
+    prompt: Optional[str] = Field(
+        default=None,
+        description="The prompt for which KV cache space will be allocated."
+    )
+    token_ids: Optional[list[int]] = Field(
+        default=None,
+        description="A list of token IDs for which KV cache space will be allocated."
+    )
+
+class PrepareResponse(OpenAIBaseModel):
+    token_ids: list[int] = Field(
+        default=None,
+        description="A list of token IDs for which KV cache space will be allocated."
+    )
+    prefix_ids: list[int] = Field(
+        description="The tokens that hit in prefix cache."
+    )
+    cache_loc: list[int] = Field(
+        description="The position in KV cache allocated for the request."
+    )
+
+class CommitRequest(OpenAIBaseModel):
+    request_id: str = Field(default_factory=lambda: f"commit-{random_uuid()}"),
+    token_ids: Optional[list[int]] = Field(
+        default=None,
+        description="A list of token IDs for which KV cache space will be allocated."
+    ),
+    cache_loc: list[int] = Field(
+        description="The position in KV cache allocated for the request."
+    )
+class CommitResponse(OpenAIBaseModel):
+    status: str = Field(
+        default="success",
+        description="Status of the commit operation."
+    )
 class FunctionCall(OpenAIBaseModel):
     name: str
     arguments: str

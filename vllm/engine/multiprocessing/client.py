@@ -751,3 +751,9 @@ class MQLLMEngineClient(EngineClient):
         # Raise on error, otherwise happily return None
         if isinstance(request_output, BaseException):
             raise request_output
+    
+    async def prepare_cache(self, request_id: str, token_ids: List[int]):
+        return self.engine.prepare_cache(token_ids)
+    
+    async def commit_cache(self, request_id: str, token_ids: List[int], cache_loc: List[int]):
+        return self.engine.commit_cache(token_ids, cache_loc)

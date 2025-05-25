@@ -917,7 +917,22 @@ class LLMEngine:
         for scheduler in self.scheduler:
             success = success and scheduler.reset_prefix_cache(device)
         return success
-
+    
+    def prepare_cache(self, token_ids: list[int]):
+        seq_id = next(self.seq_counter)
+        block_manager = self.scheduler.block_manager
+        block_size = block_manager.block_size
+        seq = Sequence(seq_id=seq_id, inputs=token_ids, block_size=block_size)
+        
+        cached_prefix_num = block_manager.get_num_cached_tokens(seq)
+        cached_prefix = token_ids[:cached_prefix_num]
+        new_slots = token_ids[cached_prefix_num:]
+        new_num = len(token_ids) - cached_prefix_num
+        
+        
+        
+        pass
+        
     @staticmethod
     def _process_sequence_group_outputs(
         seq_group: SequenceGroup,
